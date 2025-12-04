@@ -8,14 +8,24 @@
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+    </style>
 </head>
 <body>
     <div id="root"></div>
 
     <script type="text/babel">
         const { useState, useEffect } = React;
+
+        // Simple icon components
+        const Heart = () => <span>❤️</span>;
+        const Search = () => <span>🔍</span>;
+        const Dog = () => <span>🐕</span>;
+        const List = () => <span>📋</span>;
+        const Info = () => <span>ℹ️</span>;
+        const User = () => <span>👤</span>;
         
         function DogMatcher() {
           const [view, setView] = useState('about');
@@ -49,7 +59,7 @@
           };
 
           useEffect(() => {
-            const csvData = `Name,Sex,Breed ,Age ,Size ,Energy Level ,Temperament,Grooming Needs,Experience Required,Hypoallergenic? ,Potty trained?,Leash trained? ,Crate trained? ,Good with other dogs? ,Good with cats? ,Good with little kids? (5 and younger)
+            const csvData = \`Name,Sex,Breed ,Age ,Size ,Energy Level ,Temperament,Grooming Needs,Experience Required,Hypoallergenic? ,Potty trained?,Leash trained? ,Crate trained? ,Good with other dogs? ,Good with cats? ,Good with little kids? (5 and younger)
 Muffin,Female,Basset Hound & Hound Mix,4 years,Medium,High,"Friendly, social, sweet",Low,None,No,Yes,Yes,Yes,Yes,No,Yes
 Julius,Male,Australian Cattle Dog & Blue Heeler & Hound Mix,6 months,Medium,High,"Playful, sweet",Low,None,No,Yes,Yes,Yes,Yes,Unknown,Yes
 Mollie,Female,Shepherd Mix,10 years,Medium,Medium,"Friendly, gentle, anxious",Medium,None,No,Yes,Yes,Yes,Yes,No,Yes
@@ -59,7 +69,7 @@ Lotte,Female,Mountain Cur Mix,8 years,Medium,Medium,"Anxious, smart, loving",Low
 Waffles,Male,Terrier Mix,6 months,Medium,High,"Friendly, active",Low,None,No,No,No,No,Yes,Unknown,No
 Lacey Lou,Female,Hound & Mixed Breed Mix,7 months,Medium,High,"Social, sweet",Low,None,No,No,No,Yes,Yes,Unknown,No
 Copper,Male,Australian Cattle Dog & Labrador Retriever Mix,4 years,Medium,High,"Affectionate, smart",Low,None,No,Yes,Yes,Yes,Yes,Yes,No
-Cagney,Female,Chesapeake Bay Retriever & Hound,6 months,Medium,High,"Outgoing, friendly",Low,None,No,Yes,No,No,Yes,Yes,No`;
+Cagney,Female,Chesapeake Bay Retriever & Hound,6 months,Medium,High,"Outgoing, friendly",Low,None,No,Yes,No,No,Yes,Yes,No\`;
             
             Papa.parse(csvData, {
               header: true,
@@ -282,4 +292,482 @@ Cagney,Female,Chesapeake Bay Retriever & Hound,6 months,Medium,High,"Outgoing, f
                   }
                 } else {
                   if (dog.goodWithKids === 'yes') score += 30;
-                  else if (dog
+                  else if (dog.goodWithKids === 'unknown') {
+                    score += 12;
+                    warnings.push('Compatibility with children unknown');
+                  }
+                  else {
+                    score += 0;
+                    warnings.push('Not recommended for young children');
+                  }
+                }
+              }
+
+              if (userPrefs.hasPets === 'yes') {
+                maxScore += 30;
+                if (userPrefs.petType === 'dog') {
+                  if (dog.goodWithOtherDogs === 'yes') score += 30;
+                  else if (dog.goodWithOtherDogs === 'unknown') {
+                    score += 12;
+                    warnings.push('Compatibility with other dogs unknown');
+                  }
+                  else {
+                    score += 0;
+                    warnings.push('Not recommended for homes with dogs');
+                  }
+                } else if (userPrefs.petType === 'cat') {
+                  if (dog.goodWithCats === 'yes') score += 30;
+                  else if (dog.goodWithCats === 'unknown') {
+                    score += 12;
+                    warnings.push('Compatibility with cats unknown');
+                  }
+                  else {
+                    score += 0;
+                    warnings.push('Not recommended for homes with cats');
+                  }
+                } else if (userPrefs.petType === 'both') {
+                  if (dog.goodWithOtherDogs === 'yes' && dog.goodWithCats === 'yes') score += 30;
+                  else if (dog.goodWithOtherDogs === 'yes' || dog.goodWithCats === 'yes') {
+                    score += 15;
+                    warnings.push('May not be compatible with all existing pets');
+                  }
+                  else {
+                    score += 5;
+                    warnings.push('Not recommended for multi-pet households');
+                  }
+                }
+              }
+
+              maxScore += 15;
+              const groomingMap = { low: 0, medium: 1, high: 2 };
+              const dogGroomingLevel = groomingMap[dog.grooming] || 1;
+              const userGroomingLevel = groomingMap[userPrefs.groomingTime] || 1;
+              const groomingDiff = Math.abs(dogGroomingLevel - userGroomingLevel);
+              
+              if (groomingDiff === 0) score += 15;
+              else if (groomingDiff === 1) score += 10;
+              else score += 5;
+
+              if (userPrefs.needsHypoallergenic === 'yes') {
+                maxScore += 30;
+                if (dog.hypoallergenic) score += 30;
+                else {
+                  score += 0;
+                  warnings.push('Not hypoallergenic - may trigger allergies');
+                }
+              }
+
+              score = isNaN(score) ? 0 : Math.max(0, score);
+              maxScore = isNaN(maxScore) || maxScore === 0 ? 100 : maxScore;
+
+              const percentage = Math.max(0, Math.min(100, Math.round((score / maxScore) * 100)));
+              return { ...dog, matchScore: percentage, isPuppy: isPuppy, warnings: warnings };
+            });
+
+            const sorted = scored.sort((a, b) => b.matchScore - a.matchScore);
+            setMatches(sorted);
+            setView('results');
+          };
+
+          return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 p-6">
+              <div className="max-w-6xl mx-auto">
+                <div className="text-center mb-8">
+                  <h1 className="text-4xl font-bold text-gray-800 mb-2 flex items-center justify-center gap-2">
+                    <Dog /> Dog Matching System
+                  </h1>
+                  <p className="text-gray-600">Find the perfect furry companion</p>
+                </div>
+
+                <div className="flex gap-4 mb-6 justify-center flex-wrap">
+                  <button
+                    onClick={() => setView('about')}
+                    className={\`px-6 py-2 rounded-lg flex items-center gap-2 transition \${
+                      view === 'about' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }\`}
+                  >
+                    <Info /> About
+                  </button>
+                  <button
+                    onClick={() => setView('quiz')}
+                    className={\`px-6 py-2 rounded-lg flex items-center gap-2 transition \${
+                      view === 'quiz' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }\`}
+                  >
+                    <User /> Find Your Match
+                  </button>
+                  <button
+                    onClick={() => setView('all-dogs')}
+                    className={\`px-6 py-2 rounded-lg flex items-center gap-2 transition \${
+                      view === 'all-dogs' ? 'bg-purple-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                    }\`}
+                  >
+                    <List /> All Dogs ({dogs.length})
+                  </button>
+                </div>
+
+                {view === 'about' && (
+                  <div className="max-w-3xl mx-auto bg-white rounded-xl shadow-lg p-8">
+                    <h2 className="text-3xl font-bold mb-6 text-gray-800">About Our Dog Matching Service</h2>
+                    
+                    <div className="prose max-w-none">
+                      <p className="text-gray-700 mb-4 text-lg">
+                        Welcome to our dog matching system! We're dedicated to helping you find the perfect canine companion that fits your lifestyle, living situation, and family needs.
+                      </p>
+                      
+                      <h3 className="text-2xl font-semibold mt-6 mb-3 text-gray-800">How It Works</h3>
+                      <p className="text-gray-700 mb-4">
+                        Our intelligent matching algorithm considers multiple factors to pair you with compatible dogs:
+                      </p>
+                      <ul className="list-disc list-inside text-gray-700 mb-4 space-y-2">
+                        <li>Your living space and environment</li>
+                        <li>Activity level and exercise preferences</li>
+                        <li>Experience with dogs</li>
+                        <li>Family composition (children, other pets)</li>
+                        <li>Grooming commitment</li>
+                        <li>Training availability</li>
+                        <li>Special needs (hypoallergenic requirements)</li>
+                      </ul>
+
+                      <h3 className="text-2xl font-semibold mt-6 mb-3 text-gray-800">Research-Based Matching</h3>
+                      <p className="text-gray-700 mb-4">
+                        Our system incorporates veterinary research and breed-specific knowledge to ensure responsible matches.
+                      </p>
+
+                      <div className="bg-purple-50 border-l-4 border-purple-600 p-4 mt-6">
+                        <p className="text-gray-700">
+                          <strong>Remember:</strong> Every dog is unique! While our matching system provides guidance, we encourage you to meet potential matches in person.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {view === 'quiz' && (
+                  <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-8">
+                    <h2 className="text-2xl font-bold mb-6 text-gray-800">Tell Us About Yourself</h2>
+                    
+                    <div className="space-y-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Living Space</label>
+                        <select
+                          value={userPrefs.livingSpace}
+                          onChange={(e) => setUserPrefs(prev => ({ ...prev, livingSpace: e.target.value }))}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="apartment">Apartment</option>
+                          <option value="house">House</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Do you have a yard?</label>
+                        <select
+                          value={userPrefs.hasYard}
+                          onChange={(e) => setUserPrefs(prev => ({ ...prev, hasYard: e.target.value }))}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="yes">Yes</option>
+                          <option value="no">No</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Dog Experience</label>
+                        <select
+                          value={userPrefs.experience}
+                          onChange={(e) => setUserPrefs(prev => ({ ...prev, experience: e.target.value }))}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="none">First-time owner</option>
+                          <option value="some">Some experience</option>
+                          <option value="experienced">Very experienced</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Activity Level</label>
+                        <select
+                          value={userPrefs.activity}
+                          onChange={(e) => setUserPrefs(prev => ({ ...prev, activity: e.target.value }))}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="low">Low (Short walks)</option>
+                          <option value="moderate">Moderate (Regular walks)</option>
+                          <option value="active">Active (Long walks, running)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Do you have children?</label>
+                        <select
+                          value={userPrefs.hasChildren}
+                          onChange={(e) => setUserPrefs(prev => ({ ...prev, hasChildren: e.target.value }))}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="yes">Yes</option>
+                          <option value="no">No</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Do you have other pets?</label>
+                        <select
+                          value={userPrefs.hasPets}
+                          onChange={(e) => setUserPrefs(prev => ({ ...prev, hasPets: e.target.value }))}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="yes">Yes</option>
+                          <option value="no">No</option>
+                        </select>
+                      </div>
+
+                      {userPrefs.hasPets === 'yes' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">What type of pets?</label>
+                          <select
+                            value={userPrefs.petType}
+                            onChange={(e) => setUserPrefs(prev => ({ ...prev, petType: e.target.value }))}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                          >
+                            <option value="dog">Dog(s)</option>
+                            <option value="cat">Cat(s)</option>
+                            <option value="both">Both dogs and cats</option>
+                          </select>
+                        </div>
+                      )}
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Grooming Time Commitment</label>
+                        <select
+                          value={userPrefs.groomingTime}
+                          onChange={(e) => setUserPrefs(prev => ({ ...prev, groomingTime: e.target.value }))}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="low">Low (Minimal grooming)</option>
+                          <option value="moderate">Moderate (Weekly brushing)</option>
+                          <option value="high">High (Daily grooming)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Do you need a hypoallergenic dog?</label>
+                        <select
+                          value={userPrefs.needsHypoallergenic}
+                          onChange={(e) => setUserPrefs(prev => ({ ...prev, needsHypoallergenic: e.target.value }))}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="no">No</option>
+                          <option value="yes">Yes (I have allergies)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Do you have time to train a dog?</label>
+                        <select
+                          value={userPrefs.trainingTime}
+                          onChange={(e) => setUserPrefs(prev => ({ ...prev, trainingTime: e.target.value }))}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                        >
+                          <option value="yes">Yes, I can train</option>
+                          <option value="no">No, I need a fully trained dog</option>
+                        </select>
+                      </div>
+
+                      <button
+                        onClick={calculateMatch}
+                        disabled={dogs.length === 0}
+                        className="w-full bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition font-semibold disabled:bg-gray-400 flex items-center justify-center gap-2"
+                      >
+                        <Search /> Find My Match
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {view === 'all-dogs' && (
+                  <div className="max-w-4xl mx-auto">
+                    <h2 className="text-3xl font-bold mb-6 text-gray-800 text-center">All Available Dogs</h2>
+                    
+                    <div className="space-y-4">
+                      {dogs.map((dog) => (
+                        <div key={dog.id} className="bg-white rounded-xl shadow-lg p-6">
+                          <div className="flex flex-col md:flex-row gap-6">
+                            <div className="md:w-1/3">
+                              {dogImages[dog.name] ? (
+                                <img 
+                                  src={dogImages[dog.name]} 
+                                  alt={dog.name}
+                                  className="w-full h-64 object-cover rounded-lg"
+                                />
+                              ) : (
+                                <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center">
+                                  <p className="text-gray-500 text-sm">(Not pictured)</p>
+                                </div>
+                              )}
+                            </div>
+
+                            <div className="md:w-2/3">
+                              <h3 className="text-2xl font-bold text-gray-800">{dog.name}</h3>
+                              <p className="text-gray-600 mb-3">{dog.breed} • {dog.age} • {dog.sex}</p>
+
+                              <div className="flex gap-2 flex-wrap mb-4">
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm font-medium">
+                                  {dog.size}
+                                </span>
+                                <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                                  {dog.energy} energy
+                                </span>
+                                {dog.leashTrained && (
+                                  <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium">
+                                    leash trained
+                                  </span>
+                                )}
+                                {dog.pottyTrained && (
+                                  <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium">
+                                    potty trained
+                                  </span>
+                                )}
+                                {dog.crateTrained && (
+                                  <span className="px-3 py-1 bg-teal-100 text-teal-700 rounded-full text-sm font-medium">
+                                    crate trained
+                                  </span>
+                                )}
+                              </div>
+
+                              {dog.temperament.length > 0 && (
+                                <div className="mb-3">
+                                  <span className="text-sm font-medium text-gray-700">Temperament: </span>
+                                  <span className="text-sm text-gray-600">{dog.temperament.join(', ')}</span>
+                                </div>
+                              )}
+
+                              {(dog.goodWithOtherDogs !== 'unknown' || dog.goodWithCats !== 'unknown' || dog.goodWithKids !== 'unknown') && (
+                                <div className="mb-3 text-sm">
+                                  <span className="font-medium text-gray-700">Compatibility: </span>
+                                  <span className="text-gray-600">
+                                    {dog.goodWithOtherDogs !== 'unknown' && \`Dogs: \${dog.goodWithOtherDogs}\`}
+                                    {dog.goodWithOtherDogs !== 'unknown' && dog.goodWithCats !== 'unknown' && ' • '}
+                                    {dog.goodWithCats !== 'unknown' && \`Cats: \${dog.goodWithCats}\`}
+                                    {(dog.goodWithOtherDogs !== 'unknown' || dog.goodWithCats !== 'unknown') && dog.goodWithKids !== 'unknown' && ' • '}
+                                    {dog.goodWithKids !== 'unknown' && \`Kids: \${dog.goodWithKids}\`}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {view === 'results' && (
+                  <div className="max-w-4xl mx-auto">
+                    <div className="text-center mb-6">
+                      <h2 className="text-3xl font-bold text-gray-800 mb-2">Your Matches</h2>
+                      <p className="text-gray-600">Based on your preferences, here are your matches ranked by compatibility</p>
+                    </div>
+
+                    {matches.length === 0 ? (
+                      <div className="bg-white rounded-xl shadow-lg p-8 text-center">
+                        <p className="text-gray-600 mb-4 text-lg font-semibold">
+                          {userPrefs.needsHypoallergenic === 'yes' 
+                            ? 'No hypoallergenic dogs are currently available.'
+                            : 'No dogs match your criteria.'}
+                        </p>
+                        <button
+                          onClick={() => setView('quiz')}
+                          className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                        >
+                          Adjust Preferences
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        <div className="space-y-4">
+                          {matches.map((dog, index) => (
+                            <div
+                              key={dog.id}
+                              className={\`bg-white rounded-xl shadow-lg p-6 \${
+                                index === 0 ? 'ring-2 ring-purple-500' : ''
+                              }\`}
+                            >
+                              <div className="flex flex-col md:flex-row gap-6">
+                                <div className="md:w-1/3">
+                                  {dogImages[dog.name] ? (
+                                    <img 
+                                      src={dogImages[dog.name]} 
+                                      alt={dog.name}
+                                      className="w-full h-64 object-cover rounded-lg"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-64 bg-gray-200 rounded-lg flex items-center justify-center">
+                                      <p className="text-gray-500 text-sm">(Not pictured)</p>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="md:w-2/3">
+                                  <div className="flex justify-between items-start mb-4">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-3 mb-2">
+                                        <h3 className="text-2xl font-bold text-gray-800">{dog.name}</h3>
+                                        {index === 0 && (
+                                          <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-semibold flex items-center gap-1">
+                                            <Heart /> Best Match
+                                          </span>
+                                        )}
+                                      </div>
+                                      <p className="text-gray-600 mb-3">{dog.breed} • {dog.age} • {dog.sex}</p>
+                                    </div>
+                                    <div className="text-right">
+                                      <div className="text-3xl font-bold text-purple-600">{dog.matchScore}%</div>
+                                      <div className="text-sm text-gray-500">Match</div>
+                                    </div>
+                                  </div>
+
+                                  {dog.warnings && dog.warnings.length > 0 && (
+                                    <div className="mb-3 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
+                                      <p className="text-sm font-medium text-yellow-800 mb-1">Important Considerations:</p>
+                                      <ul className="text-sm text-yellow-700 list-disc list-inside">
+                                        {dog.warnings.map((warning, idx) => (
+                                          <li key={idx}>{warning}</li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  )}
+
+                                  {dog.temperament.length > 0 && (
+                                    <div className="mb-3">
+                                      <span className="text-sm font-medium text-gray-700">Temperament: </span>
+                                      <span className="text-sm text-gray-600">{dog.temperament.join(', ')}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="mt-6 text-center">
+                          <button
+                            onClick={() => setView('quiz')}
+                            className="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
+                          >
+                            Adjust Preferences
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        }
+
+        ReactDOM.render(<DogMatcher />, document.getElementById('root'));
+    </script>
+</body>
+</html>
